@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-TOKEN = os.environ.get("TOKEN", "9146193201:AAGXhRBVRG4eSalEbniJALlAj_rJMmSKPyI")
+TOKEN = os.environ.get("TOKEN", "9146193201:AAFwMReGr51ZkrtbNNoR1sHi08Mi0mgay38")
 PORT = int(os.environ.get("PORT", "8000"))
 RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://nqk-tiktok-bot.onrender.com")
 
