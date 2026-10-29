@@ -1,26 +1,22 @@
 import os
-from dotenv import load_dotenv # 1. Import thư viện
-load_dotenv()
+from dotenv import load_dotenv
 import httpx
 from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-TOKEN = os.environ.get("TOKEN") or os.getenv("TOKEN", "")
+# Tải file .env nếu chạy local trên máy tính
+load_dotenv()
+
+# Lấy token từ biến môi trường
+TOKEN = os.environ.get("TOKEN", "").strip()
 PORT = int(os.environ.get("PORT", "8000"))
-RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://nqk-tiktok-bot.onrender.com")
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "")
 
 app = FastAPI()
 
-# Khởi tạo Telegram Bot Application
-telegram_app = (
-    Application.builder()
-    .token(TOKEN)
-    .read_timeout(120)
-    .write_timeout(120)
-    .connect_timeout(60)
-    .build()
-)
+# Khai báo biến toàn cục nhưng chưa vội khởi tạo ngay lúc import file
+telegram_app = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -106,16 +102,30 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await status_msg.edit_text(f"❌ Lỗi khi gửi file: {e}")
 
-# Đăng ký các handler
-telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_tiktok_link))
-telegram_app.add_handler(CallbackQueryHandler(button_callback))
-
 @app.on_event("startup")
 async def startup_event():
+    global telegram_app
+    if not TOKEN:
+        raise ValueError("❌ Biến TOKEN chưa được cấu hình hoặc đang bị rỗng!")
+    
+    # Khởi tạo Telegram Application an toàn trong lúc server chạy
+    telegram_app = (
+        Application.builder()
+        .token(TOKEN)
+        .read_timeout(120)
+        .write_timeout(120)
+        .connect_timeout(60)
+        .build()
+    )
+
+    # Đăng ký các handler
+    telegram_app.add_handler(CommandHandler("start", start))
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_tiktok_link))
+    telegram_app.add_handler(CallbackQueryHandler(button_callback))
+
     await telegram_app.initialize()
-    # Kích hoạt Webhook với Telegram
-    await telegram_app.bot.set_webhook(url=f"{RENDER_EXTERNAL_URL}/webhook")
+    if RENDER_EXTERNAL_URL:
+        await telegram_app.bot.set_webhook(url=f"{RENDER_EXTERNAL_URL}/webhook")
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
