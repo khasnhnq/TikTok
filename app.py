@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv # 1. Import thư viện
+load_dotenv()
 import httpx
 from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
