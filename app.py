@@ -7,7 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 TOKEN = "9146193201:AAGXhRBVRG4eSalEbniJALlAj_rJMmSKPyI"
 PORT = int(os.environ.get("PORT", "8000"))
 # Thay link này bằng URL trên Render của bạn sau khi deploy (ví dụ: https://nqk-tiktok-bot.onrender.com)
-RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://your-app-name.onrender.com")
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://nqk-tiktok-bot.onrender.com")
 
 app_fastapi = FastAPI()
 
