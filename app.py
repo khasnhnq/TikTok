@@ -20,7 +20,8 @@ telegram_app = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🎬 **Bot Tải TikTok Đa Năng (@nqk_tiktok_bot)**\n\n"
+        "🎬 **Bot Tải TikTok Đa Năng**\n"
+        "👤 Username: `@nqk_tiktok_bot`\n\n"
         "Hãy gửi bất kỳ đường link TikTok vào đây!",
         parse_mode="Markdown"
     )
