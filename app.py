@@ -4,12 +4,11 @@ from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-TOKEN = "9146193201:AAGXhRBVRG4eSalEbniJALlAj_rJMmSKPyI"
+TOKEN = os.environ.get("TOKEN", "9146193201:AAGXhRBVRG4eSalEbniJALlAj_rJMmSKPyI")
 PORT = int(os.environ.get("PORT", "8000"))
-# Thay link này bằng URL trên Render của bạn sau khi deploy (ví dụ: https://nqk-tiktok-bot.onrender.com)
 RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://nqk-tiktok-bot.onrender.com")
 
-app_fastapi = FastAPI()
+app = FastAPI()
 
 # Khởi tạo Telegram Bot Application
 telegram_app = (
@@ -110,19 +109,19 @@ telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_tiktok_link))
 telegram_app.add_handler(CallbackQueryHandler(button_callback))
 
-@app_fastapi.on_event("startup")
+@app.on_event("startup")
 async def startup_event():
     await telegram_app.initialize()
     # Kích hoạt Webhook với Telegram
     await telegram_app.bot.set_webhook(url=f"{RENDER_EXTERNAL_URL}/webhook")
 
-@app_fastapi.post("/webhook")
+@app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
     update = Update.de_json(data, telegram_app.bot)
     await telegram_app.process_update(update)
     return {"status": "ok"}
 
-@app_fastapi.get("/")
+@app.get("/")
 async def root():
     return {"status": "Bot is running!"}
