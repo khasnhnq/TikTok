@@ -1,4 +1,10 @@
 import os
+
+# Tự động thêm thư mục bin/ vào biến môi trường PATH để yt-dlp nhận diện node và ffmpeg
+bin_path = os.path.abspath("bin")
+if os.path.exists(bin_path):
+    os.environ["PATH"] = bin_path + os.pathsep + os.environ.get("PATH", "")
+
 import shutil
 import asyncio
 from dotenv import load_dotenv
