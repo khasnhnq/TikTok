@@ -1,9 +1,6 @@
 import os
-import asyncio
 from dotenv import load_dotenv
 import httpx
-import shutil
-import yt_dlp
 from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -20,7 +17,6 @@ app = FastAPI()
 telegram_app = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    
     await update.message.reply_text(
         "🎬 *Bot Tải TikTok & Nhạc YouTube Đa Năng*\n"
         "👤 Username: `@nqk_tiktok_bot`\n\n"
@@ -68,66 +64,55 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
     except Exception as e:
         await status_msg.edit_text(f"❌ Lỗi: {e}")
 
-# Hàm phụ tải âm thanh YouTube có dùng Cookie
-def download_youtube_audio(url: str):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': '/tmp/%(id)s.%(ext)s',
-        'max_filesize': 50 * 1024 * 1024,
-        'noplaylist': True,
-        'quiet': True,
-        # Ép yt-dlp giả lập client iOS và Mobile Web để lấy định dạng chuẩn không bị lỗi
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['ios', 'mweb']
-            }
-        }
-    }
-    
-    # Nạp file cookies.txt từ Secret Files của Render
-    secret_cookie = '/etc/secrets/cookies.txt'
-    tmp_cookie = '/tmp/cookies.txt'
-    if os.path.exists(secret_cookie):
-        shutil.copyfile(secret_cookie, tmp_cookie)
-        ydl_opts['cookiefile'] = tmp_cookie
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        file_path = ydl.prepare_filename(info)
-        title = info.get('title', 'YouTube Audio')
-        return file_path, title
-    
-# 2. Hàm xử lý riêng cho YouTube (Tách nhạc)
+# 2. Hàm xử lý riêng cho YouTube (Dùng API trung gian siêu mượt)
 async def process_youtube(update: Update, url: str):
-    status_msg = await update.message.reply_text("🔍 Đang trích xuất âm thanh từ YouTube, đợi chút nhé...")
-    file_path = None
+    status_msg = await update.message.reply_text("🔍 Đang kết nối API để trích xuất nhạc YouTube...")
 
     try:
-        # Chạy yt-dlp trong thread riêng để không làm treo FastAPI
-        file_path, title = await asyncio.to_thread(download_youtube_audio, url)
+        api_url = "https://co.wuk.sh/api/json"
+        payload = {
+            "url": url,
+            "isAudioOnly": True,
+            "dubLang": True
+        }
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
 
-        if not file_path or not os.path.exists(file_path):
-            await status_msg.edit_text("❌ Không thể tải file âm thanh (Có thể file nặng quá 50MB)!")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(api_url, json=payload, headers=headers)
+            res_data = response.json()
+
+        if res_data.get("status") in ["error", "rate-limited"]:
+            error_text = res_data.get("text", "Không thể xử lý link này.")
+            await status_msg.edit_text(f"❌ Lỗi từ API YouTube: {error_text}")
             return
 
-        await status_msg.edit_text("⏳ Đang gửi file âm thanh lên Telegram...")
+        audio_download_url = res_data.get("url")
+        filename = res_data.get("filename", "youtube_audio.mp3")
 
-        with open(file_path, 'rb') as audio_file:
-            await update.message.reply_audio(
-                audio=audio_file,
-                title=title[:60],
-                performer="YouTube Audio",
-                caption=f"🎧 {title}\n🤖 Tải bởi @nqk_tiktok_bot"
-            )
+        if not audio_download_url:
+            await status_msg.edit_text("❌ Không tìm thấy link tải âm thanh!")
+            return
 
-        await status_msg.delete()
+        await status_msg.edit_text("⏳ Đang tải file nhạc và gửi lên Telegram...")
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
+            audio_res = await client.get(audio_download_url)
+            
+            if audio_res.status_code == 200:
+                await update.message.reply_audio(
+                    audio=audio_res.content,
+                    filename=filename,
+                    caption="🎧 Đã tải nhạc YouTube thành công bởi @nqk_tiktok_bot"
+                )
+                await status_msg.delete()
+            else:
+                await status_msg.edit_text("❌ Không thể tải file âm thanh về bot!")
 
     except Exception as e:
-        await status_msg.edit_text(f"❌ Lỗi khi tải YouTube: {e}")
-    finally:
-        # Luôn xóa file tạm sau khi gửi xong để tránh đầy bộ nhớ Render
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
+        await status_msg.edit_text(f"❌ Lỗi kết nối API YouTube: {e}")
 
 # 3. Hàm điều hướng chính khi người dùng gửi tin nhắn
 async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -188,7 +173,6 @@ async def startup_event():
         .build()
     )
 
-    # Đăng ký các handler (Đã đổi sang gọi hàm handle_link)
     telegram_app.add_handler(CommandHandler("start", start))
     telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
     telegram_app.add_handler(CallbackQueryHandler(button_callback))
