@@ -71,7 +71,7 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
 # Hàm phụ tải âm thanh YouTube có dùng Cookie
 def download_youtube_audio(url: str):
     ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio/best',
+        'format': 'bestaudio', # Đổi thành 'bestaudio' để yt-dlp tự động chọn audio tốt nhất
         'outtmpl': '/tmp/%(id)s.%(ext)s',
         'max_filesize': 50 * 1024 * 1024,
         'noplaylist': True,
