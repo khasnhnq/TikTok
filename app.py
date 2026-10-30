@@ -81,6 +81,9 @@ def download_youtube_audio(url: str):
         'max_filesize': 50 * 1024 * 1024,
         'noplaylist': True,
         'quiet': True,
+        'ffmpeg_location': 'bin/',
+        # Chỉ định rõ đường dẫn tuyệt đối đến tệp thực thi Node.js để yt-dlp giải mã chữ ký YouTube
+        'js_interpreter': os.path.abspath('bin/node'),
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -98,7 +101,6 @@ def download_youtube_audio(url: str):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         file_path = ydl.prepare_filename(info)
-        # Vì có trích xuất sang mp3, đổi đuôi file thành .mp3
         base, _ = os.path.splitext(file_path)
         mp3_path = base + ".mp3"
         if os.path.exists(mp3_path):
