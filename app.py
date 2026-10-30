@@ -71,12 +71,12 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
 # Hàm phụ tải âm thanh YouTube có dùng Cookie
 def download_youtube_audio(url: str):
     ydl_opts = {
-        'format': 'best[ext=m4a]/best/bestaudio', # Mở rộng dải tìm kiếm format linh hoạt hơn
+        'format': 'bestaudio/best', # Chỉ định lấy âm thanh tốt nhất có sẵn dạng file đơn lẻ
         'outtmpl': '/tmp/%(id)s.%(ext)s',
         'max_filesize': 50 * 1024 * 1024,
         'noplaylist': True,
         'quiet': True,
-        # Giả lập client để không bị kén định dạng stream
+        
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'web']
@@ -96,7 +96,7 @@ def download_youtube_audio(url: str):
         file_path = ydl.prepare_filename(info)
         title = info.get('title', 'YouTube Audio')
         return file_path, title
-
+    
 # 2. Hàm xử lý riêng cho YouTube (Tách nhạc)
 async def process_youtube(update: Update, url: str):
     status_msg = await update.message.reply_text("🔍 Đang trích xuất âm thanh từ YouTube, đợi chút nhé...")
