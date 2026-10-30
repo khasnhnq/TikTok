@@ -19,6 +19,7 @@ app = FastAPI()
 telegram_app = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    
     await update.message.reply_text(
         "🎬 *Bot Tải TikTok & Nhạc YouTube Đa Năng*\n"
         "👤 Username: `@nqk_tiktok_bot`\n\n"
@@ -71,9 +72,15 @@ def download_youtube_audio(url: str):
     ydl_opts = {
         'format': 'bestaudio[ext=m4a]/bestaudio/best',
         'outtmpl': '/tmp/%(id)s.%(ext)s',
-        'max_filesize': 50 * 1024 * 1024, # Giới hạn 50MB của Telegram Bot
+        'max_filesize': 50 * 1024 * 1024,
         'noplaylist': True,
         'quiet': True,
+        # Giả lập client iOS/Android để lách chặn bot
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios', 'android', 'web_embedded']
+            }
+        }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
