@@ -2,6 +2,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 import httpx
+import shutil
 import yt_dlp
 from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
@@ -67,7 +68,7 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
     except Exception as e:
         await status_msg.edit_text(f"❌ Lỗi: {e}")
 
-# Hàm phụ tải âm thanh YouTube chạy ngầm không làm đơ bot
+# Hàm phụ tải âm thanh YouTube có dùng Cookie
 def download_youtube_audio(url: str):
     ydl_opts = {
         'format': 'bestaudio[ext=m4a]/bestaudio/best',
@@ -75,13 +76,15 @@ def download_youtube_audio(url: str):
         'max_filesize': 50 * 1024 * 1024,
         'noplaylist': True,
         'quiet': True,
-        # Giả lập client iOS/Android để lách chặn bot
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['ios', 'android', 'web_embedded']
-            }
-        }
     }
+    
+    # Nạp file cookies.txt từ Secret Files của Render
+    secret_cookie = '/etc/secrets/cookies.txt'
+    tmp_cookie = '/tmp/cookies.txt'
+    if os.path.exists(secret_cookie):
+        shutil.copyfile(secret_cookie, tmp_cookie)
+        ydl_opts['cookiefile'] = tmp_cookie
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         file_path = ydl.prepare_filename(info)
