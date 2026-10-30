@@ -71,11 +71,17 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
 # Hàm phụ tải âm thanh YouTube có dùng Cookie
 def download_youtube_audio(url: str):
     ydl_opts = {
-        'format': 'bestaudio', # Đổi thành 'bestaudio' để yt-dlp tự động chọn audio tốt nhất
+        'format': 'best[ext=m4a]/best/bestaudio', # Mở rộng dải tìm kiếm format linh hoạt hơn
         'outtmpl': '/tmp/%(id)s.%(ext)s',
         'max_filesize': 50 * 1024 * 1024,
         'noplaylist': True,
         'quiet': True,
+        # Giả lập client để không bị kén định dạng stream
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web']
+            }
+        }
     }
     
     # Nạp file cookies.txt từ Secret Files của Render
