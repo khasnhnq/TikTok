@@ -1,23 +1,12 @@
 import os
-
-# Tự động thêm thư mục bin/ vào biến môi trường PATH để yt-dlp nhận diện node và ffmpeg
-bin_path = os.path.abspath("bin")
-if os.path.exists(bin_path):
-    os.environ["PATH"] = bin_path + os.pathsep + os.environ.get("PATH", "")
-
-import shutil
-import asyncio
 from dotenv import load_dotenv
 import httpx
-import yt_dlp
 from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# Tải file .env nếu chạy local trên máy tính
 load_dotenv()
 
-# Lấy token từ biến môi trường
 TOKEN = os.environ.get("TOKEN", "").strip()
 PORT = int(os.environ.get("PORT", "8000"))
 RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "")
@@ -27,14 +16,20 @@ telegram_app = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🎬 *Bot Tải TikTok & Nhạc YouTube Đa Năng*\n"
+        "🎬 *Bot Tải Video & Ảnh TikTok Không Logo*\n"
         "👤 Username: `@nqk_tiktok_bot`\n\n"
-        "👇 Hãy gửi đường link TikTok hoặc YouTube vào đây!",
+        "👇 Hãy gửi đường link TikTok vào đây để tải nhé!",
         parse_mode="Markdown"
     )
 
-# 1. Hàm xử lý riêng cho TikTok
-async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url: str):
+# Hàm xử lý link TikTok
+async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.message.text.strip()
+    
+    if "tiktok.com" not in url:
+        await update.message.reply_text("⚠️ Vui lòng gửi đường link TikTok hợp lệ!")
+        return
+
     status_msg = await update.message.reply_text("🔍 Đang phân tích link TikTok, đợi xíu nhé...")
 
     try:
@@ -43,7 +38,7 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
             res_data = response.json()
 
         if res_data.get("code") != 0:
-            await status_msg.edit_text("❌ Không thể lấy dữ liệu TikTok!")
+            await status_msg.edit_text("❌ Không thể lấy dữ liệu từ link TikTok này!")
             return
 
         data = res_data["data"]
@@ -72,82 +67,6 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
         )
     except Exception as e:
         await status_msg.edit_text(f"❌ Lỗi: {e}")
-
-# Hàm phụ tải âm thanh YouTube bằng yt-dlp có kết hợp FFmpeg và Cookie
-def download_youtube_audio(url: str):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': '/tmp/%(id)s.%(ext)s',
-        'max_filesize': 50 * 1024 * 1024,
-        'noplaylist': True,
-        'quiet': True,
-        'ffmpeg_location': 'bin/',
-        # Chỉ định rõ đường dẫn tuyệt đối đến tệp thực thi Node.js để yt-dlp giải mã chữ ký YouTube
-        'js_interpreter': os.path.abspath('bin/node'),
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-    }
-    
-    # Nạp file cookies.txt từ Secret Files của Render
-    secret_cookie = '/etc/secrets/cookies.txt'
-    tmp_cookie = '/tmp/cookies.txt'
-    if os.path.exists(secret_cookie):
-        shutil.copyfile(secret_cookie, tmp_cookie)
-        ydl_opts['cookiefile'] = tmp_cookie
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        file_path = ydl.prepare_filename(info)
-        base, _ = os.path.splitext(file_path)
-        mp3_path = base + ".mp3"
-        if os.path.exists(mp3_path):
-            file_path = mp3_path
-        title = info.get('title', 'YouTube Audio')
-        return file_path, title
-
-# 2. Hàm xử lý riêng cho YouTube (Dùng yt-dlp + Cookie + FFmpeg)
-async def process_youtube(update: Update, url: str):
-    status_msg = await update.message.reply_text("🔍 Đang tải nhạc YouTube, đợi chút nhé...")
-    file_path = None
-
-    try:
-        file_path, title = await asyncio.to_thread(download_youtube_audio, url)
-
-        if not file_path or not os.path.exists(file_path):
-            await status_msg.edit_text("❌ Không thể tải file âm thanh!")
-            return
-
-        await status_msg.edit_text("⏳ Đang gửi file nhạc lên Telegram...")
-
-        with open(file_path, 'rb') as audio_file:
-            await update.message.reply_audio(
-                audio=audio_file,
-                title=title[:60],
-                performer="YouTube Audio",
-                caption=f"🎧 {title}\n🤖 Tải bởi @nqk_tiktok_bot"
-            )
-
-        await status_msg.delete()
-
-    except Exception as e:
-        await status_msg.edit_text(f"❌ Lỗi khi tải YouTube: {e}")
-    finally:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-
-# 3. Hàm điều hướng chính khi người dùng gửi tin nhắn
-async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text.strip()
-    
-    if "tiktok.com" in url:
-        await process_tiktok(update, context, url)
-    elif "youtube.com" in url or "youtu.be" in url:
-        await process_youtube(update, url)
-    else:
-        await update.message.reply_text("⚠️ Vui lòng gửi đường link TikTok hoặc YouTube hợp lệ!")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
