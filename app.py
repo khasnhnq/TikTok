@@ -65,32 +65,36 @@ async def process_tiktok(update: Update, context: ContextTypes.DEFAULT_TYPE, url
         await status_msg.edit_text(f"❌ Lỗi: {e}")
 
 # 2. Hàm xử lý riêng cho YouTube (Dùng API trung gian siêu mượt)
+# 2. Hàm xử lý riêng cho YouTube (Dùng API trung gian ổn định)
 async def process_youtube(update: Update, url: str):
     status_msg = await update.message.reply_text("🔍 Đang kết nối API để trích xuất nhạc YouTube...")
 
     try:
-        api_url = "https://co.wuk.sh/api/json"
+        # Cập nhật sang endpoint API công khai mới nhất của dịch vụ cobalt
+        api_url = "https://api.cobalt.tools/api/json"
         payload = {
             "url": url,
             "isAudioOnly": True,
-            "dubLang": True
+            "audioFormat": "mp3"
         }
         headers = {
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0"
         }
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(api_url, json=payload, headers=headers)
             res_data = response.json()
 
+        # Kiểm tra trạng thái phản hồi từ API
         if res_data.get("status") in ["error", "rate-limited"]:
             error_text = res_data.get("text", "Không thể xử lý link này.")
             await status_msg.edit_text(f"❌ Lỗi từ API YouTube: {error_text}")
             return
 
         audio_download_url = res_data.get("url")
-        filename = res_data.get("filename", "youtube_audio.mp3")
+        filename = "youtube_audio.mp3"
 
         if not audio_download_url:
             await status_msg.edit_text("❌ Không tìm thấy link tải âm thanh!")
