@@ -18,4 +18,7 @@ tar -xf node.tar.xz
 mv node-v*-linux-x64/bin/node bin/
 rm -rf node.tar.xz node-v*-linux-x64
 
+# Quan trọng: Cấp quyền thực thi cho toàn bộ file trong thư mục bin/
+chmod +x bin/*
+
 echo "Setup FFmpeg and Node.js successfully!"
